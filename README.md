@@ -46,13 +46,12 @@ pip install -r requirements.txt
 touch .env
 
 # env content example:
-#MONGO_URI=mongodb://localhost:27017
-#DB_NAME=voyager_db
+MONGO_URI=mongodb://localhost:27017
+DB_NAME=voyager_db
 
 
 # 6. Run the Django server
 python manage.py runserver
-
 # Server will be available at: http://localhost:8000
 
 ```
@@ -61,22 +60,20 @@ python manage.py runserver
 
 ## 📘 Part 3: Feature Documentation
 
-````markdown
-## 📘 API Feature Documentation
+### 💻 API Feature Documentation
 
-### 🔐 Authentication
+#### 🔐 Authentication
 
 | Method | Endpoint         | Body                         | Description            |
 | ------ | ---------------- | ---------------------------- | ---------------------- |
 | POST   | `/api/register/` | `{ "username", "password" }` | Register a user        |
 | POST   | `/api/login/`    | `{ "username", "password" }` | Login, returns user_id |
 
-> Response on login:
+**🔐 Response on Login**
 
 ```json
 {
   "message": "Login successful",
-  "user_id": "<user_id>"
+  "token": "your_jwt_token_here"
 }
 ```
-````
