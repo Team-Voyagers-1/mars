@@ -1,1 +1,1 @@
-Hello world.
+Using Python Django for backend of Voyagers.
