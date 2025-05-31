@@ -14,6 +14,7 @@ from pathlib import Path
 from pymongo import MongoClient
 from decouple import config
 
+
 CORS_ALLOW_ALL_ORIGINS = True
 MONGO_URI = config("MONGO_URI")
 MONGO_DB_NAME = config("MONGO_DB_NAME")
@@ -47,6 +48,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'users',
     'corsheaders',
+    'features',
 ]
 
 MIDDLEWARE = [
