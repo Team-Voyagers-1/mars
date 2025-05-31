@@ -21,5 +21,6 @@ from blog import views
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('', views.home),
-     path('api/', include('users.urls')),
+    path('api/', include('users.urls')),
+    path('api/widgets/', include('widget.urls')),
 ]
