@@ -1,0 +1,3 @@
+The client is a financial institution looking to digitize their loan application process. They want to create a modern web-based portal that allows users to apply for personal loans online. The portal should handle application intake, document upload, verification, credit check, and real-time loan approval. Users should receive notifications for each step of the process.
+
+The system should integrate with third-party services like Experian for credit checks, and internal systems for identity verification. The main goal is to reduce manual work and approval time while maintaining compliance.
