@@ -6,7 +6,8 @@ import os
 import uuid
 import string
 import random
-from users.mongo import mongo_db
+from users.mongo import mongo_db  
+
 import datetime
 
 def generate_handle(name):
@@ -15,7 +16,6 @@ def generate_handle(name):
     return f"{base}-{random_str}"
 
 def is_text_file(filename):
-    # List of supported text file extensions
     text_extensions = {
         '.txt', '.csv', '.json', '.md', '.py', '.js', 
         '.html', '.css', '.xml', '.yaml', '.yml', 
@@ -27,14 +27,13 @@ class FeatureView(APIView):
     parser_classes = (MultiPartParser, FormParser)
 
     def post(self, request):
-        user_id = "test_user_123"
+        user_id = request.user_id
         
         name = request.data.get('name')
         if not name:
             return Response({"error": "Feature name is required"}, 
                           status=status.HTTP_400_BAD_REQUEST)
 
-        # Check if files were uploaded
         files = request.FILES.getlist('files')
         if not files:
             return Response({"error": "No files uploaded"}, 
@@ -51,7 +50,6 @@ class FeatureView(APIView):
                 continue
 
             try:
-                # Try to read and decode file content
                 content = file.read().decode('utf-8')
                 file_details.append({
                     'name': file.name,
@@ -61,7 +59,6 @@ class FeatureView(APIView):
                 unsupported_files.append(file.name)
                 continue
 
-        # If no valid files were processed
         if not file_details:
             error_msg = "No valid text files were uploaded. "
             if unsupported_files:
@@ -69,7 +66,6 @@ class FeatureView(APIView):
             return Response({"error": error_msg}, 
                           status=status.HTTP_400_BAD_REQUEST)
 
-        # Create feature document in MongoDB
         features = mongo_db.features
         feature = {
             'id': feature_id,
@@ -82,7 +78,6 @@ class FeatureView(APIView):
         
         features.insert_one(feature)
 
-        # Prepare response
         response_data = {
             'id': feature_id,
             'name': name,
@@ -90,7 +85,6 @@ class FeatureView(APIView):
             'files': file_details
         }
 
-        # Add warning about unsupported files if any
         if unsupported_files:
             response_data['warnings'] = {
                 'unsupported_files': unsupported_files,
@@ -100,12 +94,11 @@ class FeatureView(APIView):
         return Response(response_data, status=status.HTTP_201_CREATED)
 
     def get(self, request):
-        user_id = "test_user_123"
+        user_id = request.user_id
         features = mongo_db.features
         
         user_features = list(features.find({'user_id': user_id}))
         
-        # Convert ObjectId to string
         for feature in user_features:
             feature['_id'] = str(feature['_id'])
         

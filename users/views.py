@@ -3,6 +3,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from .mongo import mongo_db
 import hashlib
+from bson import ObjectId  
 
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
@@ -16,12 +17,15 @@ class RegisterView(APIView):
         if users.find_one({"username": username}):
             return Response({"error": "User already exists"}, status=status.HTTP_400_BAD_REQUEST)
 
-        users.insert_one({
+        result = users.insert_one({
             "username": username,
             "password": hash_password(password)
         })
 
-        return Response({"message": "User registered successfully"}, status=status.HTTP_201_CREATED)
+        return Response({
+            "message": "User registered successfully",
+            "user_id": str(result.inserted_id)
+        }, status=status.HTTP_201_CREATED)
 
 class LoginView(APIView):
     def post(self, request):
@@ -35,6 +39,12 @@ class LoginView(APIView):
         })
 
         if user:
-            return Response({"message": "Login successful", "user_id": str(user["_id"])})
+            return Response({
+                "message": "Login successful",
+                "token": str(user["_id"])  
+            })
         else:
-            return Response({"error": "Invalid credentials"}, status=status.HTTP_401_UNAUTHORIZED)
+            return Response(
+                {"error": "Invalid credentials"}, 
+                status=status.HTTP_401_UNAUTHORIZED
+            )
