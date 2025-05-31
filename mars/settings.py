@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     'users',
     'widget',
     'corsheaders',
+    'stories',
 ]
 
 MIDDLEWARE = [
