@@ -13,6 +13,10 @@ def upload_feature_details(request):
         if not name or not file:
             return JsonResponse({'error': 'name and file are required'}, status=400)
 
+        existing = mongo_db.feature_details.find_one({"name": name})
+        if existing:
+            return JsonResponse({'error': 'Feature with this name already exists'}, status=409)
+
         handle = slugify(name)
 
         file_id = fs.put(file, filename=file.name, content_type=file.content_type)
@@ -21,7 +25,7 @@ def upload_feature_details(request):
         feature = {
             "name": name,
             "handle": handle,
-            "details": [{"file_id": str(file_id), "filename": file.name}]
+            "details": [{"file_id": file_id, "filename": file.name}]
         }
 
         result = mongo_db.feature_details.insert_one(feature)
@@ -30,7 +34,13 @@ def upload_feature_details(request):
             "name": feature["name"],
             "id": str(result.inserted_id),
             "handle": feature["handle"],
-            "details": feature["details"]
+            "details": [
+                         {
+                            "file_id": str(detail["file_id"]),
+                            "filename": detail["filename"]
+                         }
+                         for detail in feature["details"]
+            ]
         })
 
     return JsonResponse({'error': 'Only POST allowed'}, status=405)
@@ -45,9 +55,14 @@ def get_feature_details(request):
     if not feature:
          return JsonResponse({"error": "Feature not found"}, status=404)
 
+    details = feature.get("details", [])
+    for detail in details:
+        if "file_id" in detail:
+            detail["file_id"] = str(detail["file_id"])
+
     return JsonResponse({
             "name": feature.get("name"),
             "id": str(feature.get("_id")),
             "handle": feature.get("handle"),
-            "details": feature.get("details", [])
+            "details": details
     })
