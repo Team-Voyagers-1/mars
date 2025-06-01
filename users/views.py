@@ -12,13 +12,15 @@ class RegisterView(APIView):
         users = mongo_db.users
         username = request.data.get("username")
         password = request.data.get("password")
+        role = request.data.get("role")
 
         if users.find_one({"username": username}):
             return Response({"error": "User already exists"}, status=status.HTTP_400_BAD_REQUEST)
 
         users.insert_one({
             "username": username,
-            "password": hash_password(password)
+            "password": hash_password(password),
+            "role": role
         })
 
         return Response({"message": "User registered successfully"}, status=status.HTTP_201_CREATED)

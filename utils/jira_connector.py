@@ -8,6 +8,13 @@ headers = {
     "Accept": "application/json",
     "Content-Type": "application/json"
 }
+# Role-to-status mapping
+role_status_map = {
+    "Product Owner": "To Do",
+    "Scrum Master": "Approved",
+    "Business Analyst": "In Review",
+    "Dev Lead": "Pending Development"
+}
 
 def create_jira_issue(issue_payload: dict) -> dict:
     """
@@ -60,16 +67,46 @@ def format_description(text):
 
 def get_epic_key(summary,project_key):
     jql = f'summary ~ "{summary}" AND issuetype = Epic AND project = {project_key}'
-    url = f"{settings.JIRA_BASE_URL}/rest/api/2/search?jql={jql}"
+    issues = get_jql_result(jql)
+    epic_key = issues[0]["key"]
+    return epic_key
+    
 
+def get_jql_result(jql):
+    url = f"{settings.JIRA_BASE_URL}/rest/api/2/search?jql={jql}"
+    print("jql", jql)
     response = requests.get(
     url,
     headers=headers,
     auth=auth
     )
     data = response.json()
-    if data["issues"]:
-        epic_key = data["issues"][0]["key"]
-        return epic_key
-    else:
-        return None
+    return data['issues']
+
+
+def generate_jql(user_role: str, feature_handle: str) -> str:
+    status = role_status_map.get(user_role)
+    if not status:
+        raise ValueError(f"Unsupported role: {user_role}")
+    
+    return f'labels = {feature_handle} AND status = "{status}"'
+
+
+
+def update_story_response(issues):
+    results = []
+    for issue in issues:
+        fields = issue["fields"]
+        parent = fields.get("parent", {})
+
+        result = {
+            "key": issue["key"],
+            "summary": fields.get("summary"),
+            "issuetype": fields.get("issuetype", {}).get("name"),
+            "parent_key": parent.get("key"),
+            "parent_summary": parent.get("fields", {}).get("summary")
+        }
+
+        results.append(result)
+
+    return results

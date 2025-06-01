@@ -6,7 +6,9 @@ from rest_framework.response import Response
 from rest_framework import status
 from utils.file_reader import extract_text_from_file, parse_csv_records
 from utils.openai_client import generate_story_details, generate_epic_details
-from utils.jira_connector import create_jira_issue
+from utils.jira_connector import create_jira_issue,generate_jql,get_jql_result,update_story_response
+from users.mongo import mongo_db
+from bson import ObjectId
 
 class GenerateStoriesView(APIView):
     def post(self, request):
@@ -19,6 +21,7 @@ class GenerateStoriesView(APIView):
 
             stories = []
             for row in records:
+                row["labels"] = 'feature_handle, ' + row['labels']
                 story = generate_story_details(context, row)
                 result = create_jira_issue(story)
                 stories.append(result)
@@ -49,3 +52,18 @@ class GenerateEpicsView(APIView):
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+
+class GetStoriesView(APIView):
+    def get(self, request):
+        try:
+            user_id = request.headers['User']; 
+            users = mongo_db.users
+            user = users.find_one({"_id": ObjectId(user_id)})
+            jql = generate_jql(user['role'], request.GET.get('feature_handle'))
+            stories = get_jql_result(jql)
+            stories = update_story_response(stories)
+            print(stories)
+            return Response({"stories": stories}, status=status.HTTP_200_OK)
+        
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
