@@ -5,7 +5,8 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from utils.file_reader import extract_text_from_file, parse_csv_records
-from utils.openai_client import generate_story_details
+from utils.openai_client import generate_story_details, generate_epic_details
+from utils.jira_connector import create_jira_issue
 
 class GenerateStoriesView(APIView):
     def post(self, request):
@@ -14,14 +15,37 @@ class GenerateStoriesView(APIView):
             # GET FILES FROM FEATURE
             # EXTRACT CONTENT AND RECORDS FROM FILES
             context = extract_text_from_file("files/context.txt")
-            records = parse_csv_records("files/stories.csv")
+            records = parse_csv_records("files/StorySheetTemplate.csv")
 
             stories = []
             for row in records:
                 story = generate_story_details(context, row)
-                stories.append(story)
+                result = create_jira_issue(story)
+                stories.append(result)
 
             return Response({"stories": stories}, status=status.HTTP_200_OK)
         
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class GenerateEpicsView(APIView):
+    def post(self, request):
+        try:
+            context = extract_text_from_file("files/context.txt")
+            records = parse_csv_records("files/EpicSheetTemplate.csv")
+
+            epics = []
+            for row in records:
+                epic = generate_epic_details(context, row)
+                print(epic)
+                # epic.summary, result.key - is unique for each epic
+                # result = create_jira_issue(epic)
+                # epics.append(result)
+
+            return Response({"epics": epics}, status=status.HTTP_200_OK)
+        
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+

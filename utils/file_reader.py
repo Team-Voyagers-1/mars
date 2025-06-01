@@ -27,7 +27,24 @@ def extract_text_from_file(filepath: str) -> Optional[str]:
         raise ValueError(f"Unsupported file format: {ext}")
 
 
-def parse_csv_records(filepath: str) -> list[dict]:
-    with open(filepath, "r", encoding="utf-8") as f:
-        reader = csv.DictReader(f)
-        return list(reader)
+
+def parse_csv_records(csv_file_path: str):
+    records = []
+
+    with open(csv_file_path, mode="r", encoding="utf-8-sig") as csvfile:
+        reader = csv.DictReader(csvfile)
+        for row in reader:
+            record = {
+                "summary": row.get("summary", "").strip(),
+                "project": row.get("project", "").strip(),
+                "description": row.get("description", "").strip(),
+                "issuetype": row.get("issuetype", "Story").strip(),
+                "sprint": row.get("sprint", "").strip(),
+                "story_points": row.get("story_points", 0),
+                "assignee": row.get("assignee", "").strip(),
+                "labels": [label.strip() for label in row.get("labels", "").split(",") if label.strip()],
+                "parent": row.get("parent", "").strip()
+            }
+            records.append(record)
+
+    return records

@@ -17,6 +17,10 @@ from decouple import config
 CORS_ALLOW_ALL_ORIGINS = True
 MONGO_URI = config("MONGO_URI")
 MONGO_DB_NAME = config("MONGO_DB_NAME")
+JIRA_BASE_URL = config("JIRA_BASE_URL")
+JIRA_EMAIL = config("JIRA_EMAIL")
+JIRA_API_TOKEN = config("JIRA_API_TOKEN")
+
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -27,6 +31,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = 'django-insecure-$55*z=p-8lvb@+qsw99^3#733g)g_zf@38ed*d&0z%tuej_+yr'
+
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
