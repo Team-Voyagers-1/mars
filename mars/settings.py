@@ -51,6 +51,7 @@ INSTALLED_APPS = [
     'blog',
     'rest_framework',
     'users',
+    'widget',
     'corsheaders',
     'stories',
 ]
