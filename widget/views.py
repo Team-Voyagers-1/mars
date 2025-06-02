@@ -74,8 +74,15 @@ def get_feature_details(request):
             "details": details
     })
 
+def get_all_features(request):
+    feature_collection = mongo_db['feature_details']
+    features = feature_collection.find({}, {'_id': 0, 'name': 1, 'handle': 1})
+    feature_list = list(features)
+    return JsonResponse(feature_list, safe=False)
+
+
 @csrf_exempt
-def get_feature_details_filtered(request):
+def update_feature(request):
     if request.method == 'POST':
         handle = request.POST.get('handle')
         file = request.FILES.get('file')

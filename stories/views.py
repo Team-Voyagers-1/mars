@@ -16,11 +16,15 @@ class GenerateStoriesView(APIView):
         try:
               handle = request.data.get('handle')
               feature = mongo_db.feature_details.find_one({"handle": handle})
+
               file_id = feature["details"][0]["file_id"]
               file_info = fetch_file_by_id(file_id)
 
+              story_file_id = feature["story_sheet"]["file_id"]
+              story_file_info = fetch_file_by_id(story_file_id)
+
               context = extract_text_from_file(file_info["data"],file_info["filename"])
-              records = parse_csv_records("files/stories.csv")
+              records = parse_csv_records(story_file_info["data"])
 
               stories = []
               for row in records:
@@ -38,8 +42,17 @@ class GenerateStoriesView(APIView):
 class GenerateEpicsView(APIView):
     def post(self, request):
         try:
-            context = extract_text_from_file("files/context.txt")
-            records = parse_csv_records("files/EpicSheetTemplate.csv")
+            handle = request.data.get('handle')
+            feature = mongo_db.feature_details.find_one({"handle": handle})
+
+            file_id = feature["details"][0]["file_id"]
+            file_info = fetch_file_by_id(file_id)
+
+            epic_file_id = feature["epic_sheet"]["file_id"]
+            epic_file_info = fetch_file_by_id(epic_file_id)
+
+            context = extract_text_from_file(file_info["data"],file_info["filename"])
+            records = parse_csv_records(epic_file_info["data"])
 
             epics = []
             for row in records:
