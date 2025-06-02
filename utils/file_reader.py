@@ -4,6 +4,7 @@ import PyPDF2
 import docx
 import csv
 import os
+import io
 
 def extract_text_from_file(file: Union[str, bytes], filename: Optional[str] = None) -> Optional[str]:
         if isinstance(file, str):
@@ -41,23 +42,23 @@ def extract_text_from_file(file: Union[str, bytes], filename: Optional[str] = No
 
 
 
-def parse_csv_records(csv_file_path: str):
+def parse_csv_records(file_bytes: bytes):
     records = []
+    file_stream = io.StringIO(file_bytes.decode("utf-8-sig"))
+    reader = csv.DictReader(file_stream)
 
-    with open(csv_file_path, mode="r", encoding="utf-8-sig") as csvfile:
-        reader = csv.DictReader(csvfile)
-        for row in reader:
-            record = {
-                "summary": row.get("summary", "").strip(),
-                "project": row.get("project", "").strip(),
-                "description": row.get("description", "").strip(),
-                "issuetype": row.get("issuetype", "Story").strip(),
-                "sprint": row.get("sprint", "").strip(),
-                "story_points": row.get("story_points", 0),
-                "assignee": row.get("assignee", "").strip(),
-                "labels": [label.strip() for label in row.get("labels", "").split(",") if label.strip()],
-                "parent": row.get("parent", "").strip()
-            }
-            records.append(record)
+    for row in reader:
+        record = {
+            "summary": row.get("summary", "").strip(),
+            "project": row.get("project", "").strip(),
+            "description": row.get("description", "").strip(),
+            "issuetype": row.get("issuetype", "Story").strip(),
+            "sprint": row.get("sprint", "").strip(),
+            "story_points": row.get("story_points", 0),
+            "assignee": row.get("assignee", "").strip(),
+            "labels": [label.strip() for label in row.get("labels", "").split(",") if label.strip()],
+            "parent": row.get("parent", "").strip()
+        }
+        records.append(record)
 
     return records

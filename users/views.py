@@ -49,10 +49,10 @@ class LoginView(APIView):
         })
 
         if user:
-            token = generate_jwt_token(user)
+#             token = generate_jwt_token(user)
             return Response({
                 "message": "Login successful",
-                "token": token,
+#                 "token": token,
                 "user_id": str(user["_id"]),
                 "username": user["username"],
                 "role": user.get("role", "user")
