@@ -7,29 +7,32 @@ from rest_framework import status
 from utils.file_reader import extract_text_from_file, parse_csv_records
 from utils.openai_client import generate_story_details, generate_epic_details
 from utils.jira_connector import create_jira_issue,generate_jql,get_jql_result,update_story_response
+from mongo.file_utils import fetch_file_by_id
 from users.mongo import mongo_db
 from bson import ObjectId
 
 class GenerateStoriesView(APIView):
     def post(self, request):
         try:
-            # GET FEATURE FROM HANDLE
-            # GET FILES FROM FEATURE
-            # EXTRACT CONTENT AND RECORDS FROM FILES
-            context = extract_text_from_file("files/context.txt")
-            records = parse_csv_records("files/StorySheetTemplate.csv")
+              handle = request.data.get('handle')
+              feature = mongo_db.feature_details.find_one({"handle": handle})
+              file_id = feature["details"][0]["file_id"]
+              file_info = fetch_file_by_id(file_id)
 
-            stories = []
-            for row in records:
-                row["labels"] = 'feature_handle, ' + row['labels']
-                story = generate_story_details(context, row)
-                result = create_jira_issue(story)
-                stories.append(result)
+              context = extract_text_from_file(file_info["data"],file_info["filename"])
+              records = parse_csv_records("files/stories.csv")
 
-            return Response({"stories": stories}, status=status.HTTP_200_OK)
-        
+              stories = []
+              for row in records:
+                         row["labels"] = 'feature_handle, ' + str(row['labels'])
+                         story = generate_story_details(context, row)
+                         stories.append(story)
+
+              return Response({"stories": stories}, status=status.HTTP_200_OK)
+
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 
 class GenerateEpicsView(APIView):

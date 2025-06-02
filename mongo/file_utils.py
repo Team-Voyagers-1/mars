@@ -8,14 +8,20 @@ client = MongoClient(config("MONGO_URI"))
 db = client[config("MONGO_DB_NAME")]
 fs = gridfs.GridFS(db)
 
-def fetch_file_by_id(file_id: str) -> bytes:
+def fetch_file_by_id(file_id: ObjectId):
     """Fetches a file from GridFS using its ObjectId"""
     try:
-        grid_out = fs.get(ObjectId(file_id))
-        return grid_out.read()
+        file_obj = fs.get(file_id)
+        return {
+             "data": file_obj.read(),  # bytes
+             "filename": file_obj.filename,
+             "content_type": file_obj.content_type
+        }
+
+    except gridfs.errors.NoFile:
+            raise FileNotFoundError("File not found in GridFS")
     except Exception as e:
-        print(f"Error fetching file: {e}")
-        return None
+            raise RuntimeError(f"Error retrieving file: {str(e)}")
 
 def fetch_file_by_filename(filename: str) -> bytes:
     """Fetches a file by filename (if needed)"""
