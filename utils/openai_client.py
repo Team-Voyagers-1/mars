@@ -9,7 +9,7 @@ deployment = "gpt-35-turbo"
 subscription_key = "59fe04457dfa4194820ffabc22a6c5bf" 
 api_version = "2024-12-01-preview" 
 
-def generate_story_details(context_text: str, record: dict) -> dict:
+def generate_story_details(context_text: str, record: dict, feature_handle: str) -> dict:
     """
     Enhances the story record using OpenAI and returns a JIRA-compatible issue payload.
     """
@@ -46,7 +46,7 @@ Generate:
         top_p=1.0,     
         model=deployment 
     )
-
+    labels = (record["labels"] if record["labels"] is not None else []) + ("," + feature_handle)
     # Construct final JIRA issue payload
     issue_payload = {
         "fields": {
@@ -54,22 +54,27 @@ Generate:
             "project": {"key": record["project"]},
             "description": format_description(record["description"]),
             "issuetype": {"name": record["issuetype"]},
+            # "customfield_10020": record["sprint"],  # Replace with actual custom field ID
+            # "customfield_10016": record["story_points"],  # Story points
             "assignee": {"accountId": get_account_id(record["assignee"])},
-            "labels": record["labels"],
+            "labels": labels,
             "parent": {"key": get_epic_key(record["parent"], record["project"])}
         }
     }
 
-    # Remove parent key if not present
-    if not record.get("parent"):
-        issue_payload["fields"].pop("parent")
 
+    # Remove parent key if not present
+    # if not record["parent"]:
+    #     issue_payload["fields"].pop("parent")
     return issue_payload
 
-def generate_epic_details(context_text: str, record: dict):
-    """
-    Generates epic details and returns a JIRA-compatible issue payload.
-    """
+
+
+def generate_epic_details(context_text: str, record: dict, feature_handle:str):
+
+    labels = (record["labels"] if record["labels"] is not None else []) + [feature_handle]
+    print(record["issuetype"])
+
     issue_payload = {
         "fields": {
             "summary": record["summary"],
@@ -77,7 +82,7 @@ def generate_epic_details(context_text: str, record: dict):
             "description": format_description(record["description"]),
             "issuetype": {"name": record["issuetype"]},
             "assignee": {"accountId": get_account_id(record["assignee"])},
-            "labels": record["labels"]
+            "labels": labels
         }
     }
 

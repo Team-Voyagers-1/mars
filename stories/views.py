@@ -29,7 +29,7 @@ class GenerateStoriesView(APIView):
               stories = []
               for row in records:
                          row["labels"] = 'feature_handle, ' + str(row['labels'])
-                         story = generate_story_details(context, row)
+                         story = generate_story_details(context, row, handle)
                          stories.append(story)
 
               return Response({"stories": stories}, status=status.HTTP_200_OK)
@@ -56,8 +56,7 @@ class GenerateEpicsView(APIView):
 
             epics = []
             for row in records:
-                epic = generate_epic_details(context, row)
-                print(epic)
+                epic = generate_epic_details(context, row, handle)
 #                 epic.summary, result.key - is unique for each epic
                 result = create_jira_issue(epic)
                 epics.append(result)
@@ -70,13 +69,18 @@ class GenerateEpicsView(APIView):
 
 
 class GetStoriesView(APIView):
-    def get(self, request):
+    def post(self, request):
         try:
-            user_id = request.headers['User']; 
+            user_id = request.data.get('user_id')
+            handle = request.data.get('handle')
+            issue_type = request.data.get('issue_type')
+        
             users = mongo_db.users
             user = users.find_one({"_id": ObjectId(user_id)})
-            jql = generate_jql(user['role'], request.GET.get('feature_handle'))
+            jql = generate_jql(user['role'], handle, issue_type)
+            print(jql,"jql")
             stories = get_jql_result(jql)
+            print(stories,"stories")
             stories = update_story_response(stories)
             print(stories)
             return Response({"stories": stories}, status=status.HTTP_200_OK)
