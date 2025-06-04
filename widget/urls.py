@@ -9,4 +9,5 @@ urlpatterns = [
     path('update_feature/', views.update_feature),
     path('validate-epic/', views.validate_uploaded_epic_file),
     path('validate-story/', views.validate_uploaded_story_file),
+    path('files/', views.get_feature_files),
 ]

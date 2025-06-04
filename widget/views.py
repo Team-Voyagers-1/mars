@@ -1,202 +1,202 @@
 from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse, HttpResponse
 from django.views.decorators.http import require_http_methods
-from .mongo import mongo_db,fs
-from .models import FeatureDetails
+from django.core.cache import cache
 from django.utils.text import slugify
+from functools import wraps
+from .mongo import mongo_db, fs
+from .models import FeatureDetails
 import json
 import os
 from bson import ObjectId
 import csv
 from io import StringIO
 from .validation_epic import (
-    FIELD_VALIDATION_RULES,
-    get_required_fields,
-    get_fields_with_allowed_values
+    FIELD_VALIDATION_RULES as EPIC_VALIDATION_RULES,
+    get_required_fields as get_epic_required_fields,
+    get_fields_with_allowed_values as get_epic_allowed_values
 )
+from .validation_story import (
+    FIELD_VALIDATION_RULES as STORY_VALIDATION_RULES,
+    get_required_fields as get_story_required_fields,
+    get_fields_with_allowed_values as get_story_allowed_values
+)
+import datetime
 
-@csrf_exempt
-def upload_feature_details(request):
-    if request.method == 'POST':
-        name = request.POST.get('name')
-        file = request.FILES.get('file')
+# Constants
+ALLOWED_EXTENSIONS = {'pdf', 'csv', 'txt', 'docx'}
+MIN_FILE_SIZE = 10
+CACHE_TIMEOUT = 300  # 5 minutes
 
-        if not name or not file:
-            return JsonResponse({'error': 'name and file are required'}, status=400)
-
+def handle_exceptions(f):
+    @wraps(f)
+    def wrapper(*args, **kwargs):
         try:
-            validate_file(file)
+            return f(*args, **kwargs)
         except ValueError as e:
             return JsonResponse({'error': str(e)}, status=400)
+        except Exception as e:
+            return JsonResponse({'error': 'Internal server error'}, status=500)
+    return wrapper
 
-        existing = mongo_db.feature_details.find_one({"name": name})
-        if existing:
-            return JsonResponse({'error': 'Feature with this name already exists'}, status=409)
+def convert_objectid_to_str(obj):
+    if isinstance(obj, ObjectId):
+        return str(obj)
+    elif isinstance(obj, dict):
+        return {key: convert_objectid_to_str(value) for key, value in obj.items()}
+    elif isinstance(obj, list):
+        return [convert_objectid_to_str(item) for item in obj]
+    return obj
 
-        handle = slugify(name)
+def validate_file(uploaded_file):
+    if not uploaded_file:
+        raise ValueError("No file was uploaded.")
+    
+    file_extension = os.path.splitext(uploaded_file.name)[1].lower().strip('.')
+    
+    if file_extension not in ALLOWED_EXTENSIONS:
+        raise ValueError(f"Invalid file type. Allowed types are: {', '.join(ALLOWED_EXTENSIONS)}.")
+    
+    if uploaded_file.size < MIN_FILE_SIZE:
+        raise ValueError(f"File is too small. Minimum size is {MIN_FILE_SIZE} bytes.")
 
-        file_id = fs.put(file, filename=file.name, content_type=file.content_type)
+def store_file(file, status="uploaded"):
+    file_id = fs.put(file, filename=file.name, content_type=file.content_type, status=status)
+    return {
+        "file_id": str(file_id),
+        "filename": file.name
+    }
 
+@csrf_exempt
+@handle_exceptions
+def upload_feature_details(request):
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Only POST allowed'}, status=405)
 
-        feature = {
-            "name": name,
-            "handle": handle,
-            "details": [{
-                "file_id": file_id,
-                "filename": file.name
-            }],
-            "story_sheet": None,
-            "epic_sheet": None
-        }
+    name = request.POST.get('name')
+    file = request.FILES.get('file')
 
-        result = mongo_db.feature_details.insert_one(feature)
+    if not name or not file:
+        return JsonResponse({'error': 'name and file are required'}, status=400)
 
-        response = {
-            "name": feature["name"],
-            "id": str(result.inserted_id),
-            "handle": feature["handle"],
-            "details": [{
-                "file_id": str(detail["file_id"]),
-                "filename": detail["filename"],
-            } for detail in feature["details"]],
-            "story_sheet": None,
-            "epic_sheet": None
-        }
+    validate_file(file)
 
-        return JsonResponse(response)
+    existing = mongo_db.feature_details.find_one({"name": name}, {"_id": 1})
+    if existing:
+        return JsonResponse({'error': 'Feature with this name already exists'}, status=409)
 
-    return JsonResponse({'error': 'Only POST allowed'}, status=405)
+    handle = slugify(name)
+    file_detail = store_file(file)
 
+    feature = {
+        "name": name,
+        "handle": handle,
+        "details": [file_detail],
+        "story_sheets": [],
+        "epic_sheets": []
+    }
+
+    result = mongo_db.feature_details.insert_one(feature)
+    feature['id'] = str(result.inserted_id)
+    del feature['_id']
+
+    return JsonResponse(feature)
+
+@handle_exceptions
 def get_feature_details(request):
     handle = request.GET.get('handle')
     if not handle:
         return JsonResponse({"error": "Handle is required"}, status=400)
 
-    feature = mongo_db.feature_details.find_one({"handle": handle})
+    cache_key = f'feature_details_{handle}'
+    cached_feature = cache.get(cache_key)
+    if cached_feature:
+        return JsonResponse(cached_feature)
+
+    feature = mongo_db.feature_details.find_one(
+        {"handle": handle},
+        {"story_sheet": 0, "epic_sheet": 0}
+    )
+    
     if not feature:
-         return JsonResponse({"error": "Feature not found"}, status=404)
+        return JsonResponse({"error": "Feature not found"}, status=404)
 
-    details = feature.get("details", [])
-    for detail in details:
-        if "file_id" in detail:
-            detail["file_id"] = str(detail["file_id"])
+    feature_data = {
+        "name": feature.get("name"),
+        "id": str(feature.get("_id")),
+        "handle": feature.get("handle"),
+        "details": convert_objectid_to_str(feature.get("details", [])),
+        "story_sheets": convert_objectid_to_str(feature.get("story_sheets", [])),
+        "epic_sheets": convert_objectid_to_str(feature.get("epic_sheets", []))
+    }
 
-    return JsonResponse({
-            "name": feature.get("name"),
-            "id": str(feature.get("_id")),
-            "handle": feature.get("handle"),
-            "details": details
-    })
+    cache.set(cache_key, feature_data, CACHE_TIMEOUT)
+    return JsonResponse(feature_data)
 
+@handle_exceptions
 def get_all_features(request):
-    feature_collection = mongo_db['feature_details']
-    features = feature_collection.find({}, {'_id': 0, 'name': 1, 'handle': 1})
-    feature_list = list(features)
-    return JsonResponse(feature_list, safe=False)
+    cache_key = 'all_features'
+    cached_features = cache.get(cache_key)
+    if cached_features:
+        return JsonResponse(cached_features, safe=False)
 
+    features = list(mongo_db.feature_details.find({}, {'name': 1, 'handle': 1, '_id': 0}))
+    cache.set(cache_key, features, CACHE_TIMEOUT)
+    return JsonResponse(features, safe=False)
 
 @csrf_exempt
+@handle_exceptions
 def update_feature(request):
-    if request.method == 'POST':
-        handle = request.POST.get('handle')
-        file = request.FILES.get('file')
-        story_sheet = request.FILES.get('story_sheet')
-        epic_sheet = request.FILES.get('epic_sheet')
-        
-        if not handle:
-            return JsonResponse({"error": "Handle is required"}, status=400)
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Only POST allowed'}, status=405)
+
+    handle = request.POST.get('handle')
+    if not handle:
+        return JsonResponse({"error": "Handle is required"}, status=400)
+
+    feature = mongo_db.feature_details.find_one({"handle": handle})
+    if not feature:
+        return JsonResponse({"error": "Feature not found"}, status=404)
+
+    updates = {}
+    file_types = {
+        'file': ('details', 'context'),
+        'story_sheet': ('story_sheets', None),
+        'epic_sheet': ('epic_sheets', None)
+    }
+
+    for file_key, (array_field, file_type) in file_types.items():
+        if file := request.FILES.get(file_key):
+            validate_file(file)
+            file_detail = store_file(file)
+            if file_type:
+                file_detail['type'] = file_type
             
-        # Find the feature
-        feature = mongo_db.feature_details.find_one({"handle": handle})
-        if not feature:
-            return JsonResponse({"error": "Feature not found"}, status=404)
-        
-        # Validate all uploaded files
-        try:
-            if file:
-                validate_file(file)
-            if story_sheet:
-                validate_file(story_sheet)
-            if epic_sheet:
-                validate_file(epic_sheet)
-        except ValueError as e:
-            return JsonResponse({"error": str(e)}, status=400)
-        
-        if file:
-            # Store regular file
-            file_id = fs.put(file, filename=file.name)
-            new_detail = {
-                "file_id": file_id,
-                "filename": file.name,
-                "type": "context"
-            }
-            # Append new detail to feature
-            mongo_db.feature_details.update_one(
-                {"handle": handle},
-                {"$push": {"details": new_detail}}
-            )
-        
-        if story_sheet:
-            # Store story sheet
-            file_id = fs.put(story_sheet, filename=story_sheet.name)
-            sheet_detail = {
-                "file_id": file_id,
-                "filename": story_sheet.name
-            }
-            mongo_db.feature_details.update_one(
-                {"handle": handle},
-                {"$set": {"story_sheet": sheet_detail}}
-            )
+            if array_field not in feature:
+                updates[f"$set"] = {**updates.get("$set", {}), array_field: []}
             
-        if epic_sheet:
-            # Store epic sheet
-            file_id = fs.put(epic_sheet, filename=epic_sheet.name)
-            sheet_detail = {
-                "file_id": file_id,
-                "filename": epic_sheet.name
-            }
-            mongo_db.feature_details.update_one(
-                {"handle": handle},
-                {"$set": {"epic_sheet": sheet_detail}}
-            )
-        
-        # Get updated feature
-        updated_feature = mongo_db.feature_details.find_one({"handle": handle})
-        
-        # Convert ObjectId to string for JSON serialization
-        updated_feature["_id"] = str(updated_feature["_id"])
-        for detail in updated_feature.get("details", []):
-            if "file_id" in detail:
-                detail["file_id"] = str(detail["file_id"])
-        if "story_sheet" in updated_feature and updated_feature["story_sheet"]:
-            updated_feature["story_sheet"]["file_id"] = str(updated_feature["story_sheet"]["file_id"])
-        if "epic_sheet" in updated_feature and updated_feature["epic_sheet"]:
-            updated_feature["epic_sheet"]["file_id"] = str(updated_feature["epic_sheet"]["file_id"])
-    
-        return JsonResponse(updated_feature)
+            if "$push" not in updates:
+                updates["$push"] = {}
+            updates["$push"][array_field] = file_detail
 
-    return JsonResponse({'error': 'Only POST allowed'}, status=405)
+    if updates:
+        # Remove old single fields if they exist
+        updates.setdefault("$unset", {})
+        updates["$unset"].update({
+            "story_sheet": "",
+            "epic_sheet": ""
+        })
 
-def validate_file(uploaded_file):
+        mongo_db.feature_details.update_one({"handle": handle}, updates)
+        cache.delete(f'feature_details_{handle}')
 
-    if not uploaded_file:
-        raise ValueError("No file was uploaded.")
+        updated_feature = mongo_db.feature_details.find_one(
+            {"handle": handle},
+            {"story_sheet": 0, "epic_sheet": 0}
+        )
+        return JsonResponse(convert_objectid_to_str(updated_feature))
 
-    # Allowed file types
-    allowed_extensions = ['pdf', 'csv', 'txt', 'docx']
-    
-    # Get the file extension
-    file_name, file_extension = os.path.splitext(uploaded_file.name)
-    file_extension = file_extension.lower().strip('.')
-    
-    # Check file type
-    if file_extension not in allowed_extensions:
-        raise ValueError(f"Invalid file type. Allowed types are: {', '.join(allowed_extensions)}.")
-    
-    # Check file size
-    if uploaded_file.size < 10:  # Size in bytes
-        raise ValueError("File is too small. Minimum size is 10 bytes.")
-    
+    return JsonResponse(convert_objectid_to_str(feature))
 
 def fetch_file_from_db(file_id):
     try:
@@ -246,7 +246,7 @@ def read_file_content(file):
     except Exception as e:
         raise ValueError(f"Error reading file content: {str(e)}")
 
-def validate_file_content(content):
+def validate_file_content(content, validation_rules):
     if not content or len(content) < 1:
         raise ValueError("File is empty or has no headers")
 
@@ -256,8 +256,16 @@ def validate_file_content(content):
     
     # Validation columns only for fields that have rules
     validation_columns = []
-    fields_with_rules = [field for field, rules in FIELD_VALIDATION_RULES.items() 
+    fields_with_rules = [field for field, rules in validation_rules.items() 
                         if rules.get("is_required") or rules.get("allowed_values")]
+    
+    # Check if required fields are present in headers
+    missing_required_fields = [
+        field for field in fields_with_rules 
+        if field not in headers and validation_rules[field].get("is_required", False)
+    ]
+    if missing_required_fields:
+        raise ValueError(f"Required fields missing in CSV: {', '.join(missing_required_fields)}")
     
     for field in fields_with_rules:
         validation_columns.append(f"{field}_validation")
@@ -284,12 +292,16 @@ def validate_file_content(content):
         
         # Validate each field according to rules
         for field in fields_with_rules:
-            rules = FIELD_VALIDATION_RULES[field]
+            # Skip validation if field is not in headers
+            if field not in headers:
+                continue
+                
+            rules = validation_rules[field]
             field_value = field_values.get(field, "").strip()
             
             # Required field validation
             if rules.get("is_required", False) and not field_value:
-                validation_results[f"{field}_validation"] = "FAIL: Required field is empty"
+                validation_results[f"{field}_validation"] = "FAIL"
                 validation_results["is_valid_row"] = "FAIL"
                 continue
             
@@ -304,12 +316,12 @@ def validate_file_content(content):
                     try:
                         field_value = float(field_value)
                     except ValueError:
-                        validation_results[f"{field}_validation"] = "FAIL: Invalid number format"
+                        validation_results[f"{field}_validation"] = "FAIL"
                         validation_results["is_valid_row"] = "FAIL"
                         continue
                 
                 if field_value not in rules["allowed_values"]:
-                    validation_results[f"{field}_validation"] = f"FAIL: Value not in allowed list {rules['allowed_values']}"
+                    validation_results[f"{field}_validation"] = "FAIL"
                     validation_results["is_valid_row"] = "FAIL"
         
         # Prepare row with validation results
@@ -343,7 +355,7 @@ def validate_uploaded_epic_file(request):
 
         # Validate file_id format
         try:
-            ObjectId(file_id)
+            file_id_obj = ObjectId(file_id)
         except:
             return JsonResponse({
                 'error': 'Invalid file_id format'
@@ -365,11 +377,21 @@ def validate_uploaded_epic_file(request):
                 'error': f'Error reading file: {str(e)}'
             }, status=400)
 
-        # Validate and transform content to CSV
-        csv_content = validate_file_content(content)
-        
-        # Return just the CSV content directly
-        return HttpResponse(csv_content, content_type='text/csv')
+        # Update file status to validated since we're going to validate it
+        mongo_db.fs.files.update_one(
+            {"_id": file_id_obj},
+            {"$set": {"status": "validated"}}
+        )
+
+        try:
+            # Validate and transform content to CSV using epic rules
+            csv_content = validate_file_content(content, EPIC_VALIDATION_RULES)
+            # Return just the CSV content directly
+            return HttpResponse(csv_content, content_type='text/csv')
+        except ValueError as e:
+            return JsonResponse({
+                'error': str(e)
+            }, status=400)
 
     except Exception as e:
         return JsonResponse({
@@ -397,7 +419,7 @@ def validate_uploaded_story_file(request):
 
         # Validate file_id format
         try:
-            ObjectId(file_id)
+            file_id_obj = ObjectId(file_id)
         except:
             return JsonResponse({
                 'error': 'Invalid file_id format'
@@ -419,16 +441,72 @@ def validate_uploaded_story_file(request):
                 'error': f'Error reading file: {str(e)}'
             }, status=400)
 
-        # Validate and transform content to CSV
-        csv_content = validate_file_content(content)
-        
-        # Return just the CSV content directly
-        return HttpResponse(csv_content, content_type='text/csv')
+        # Update file status to validated since we're going to validate it
+        mongo_db.fs.files.update_one(
+            {"_id": file_id_obj},
+            {"$set": {"status": "validated"}}
+        )
+
+        try:
+            # Validate and transform content to CSV using story rules
+            csv_content = validate_file_content(content, STORY_VALIDATION_RULES)
+            # Return just the CSV content directly
+            return HttpResponse(csv_content, content_type='text/csv')
+        except ValueError as e:
+            return JsonResponse({
+                'error': str(e)
+            }, status=400)
 
     except Exception as e:
         return JsonResponse({
             'error': f'Unexpected error: {str(e)}'
         }, status=500)
+
+@require_http_methods(["GET"])
+def get_feature_files(request):
+    handle = request.GET.get('handle')
+    if not handle:
+        return JsonResponse({"error": "Feature handle is required"}, status=400)
+
+    # Find the feature
+    feature = mongo_db.feature_details.find_one({"handle": handle})
+    if not feature:
+        return JsonResponse({"error": "Feature not found"}, status=404)
+
+    files_info = []
+
+    # Process story sheets
+    for sheet in feature.get('story_sheets', []):
+        file_id = sheet.get('file_id')
+        if file_id:
+            # Get file status from fs.files
+            file_info = mongo_db.fs.files.find_one({"_id": ObjectId(file_id)})
+            if file_info:
+                files_info.append({
+                    "file_id": file_id,
+                    "filename": sheet.get('filename'),
+                    "type": "story",
+                    "status": file_info.get('status', 'unknown')
+                })
+
+    # Process epic sheets
+    for sheet in feature.get('epic_sheets', []):
+        file_id = sheet.get('file_id')
+        if file_id:
+            # Get file status from fs.files
+            file_info = mongo_db.fs.files.find_one({"_id": ObjectId(file_id)})
+            if file_info:
+                files_info.append({
+                    "file_id": file_id,
+                    "filename": sheet.get('filename'),
+                    "type": "epic",
+                    "status": file_info.get('status', 'unknown')
+                })
+
+    return JsonResponse({
+        "handle": handle,
+        "files": files_info
+    })
 
 
 
