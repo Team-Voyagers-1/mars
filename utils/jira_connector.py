@@ -44,6 +44,8 @@ def get_account_id(name_or_email):
 
     if response.status_code == 200:
         users = response.json()
+        print(url,users)
+
         if users:
             return users[0]["accountId"]
         else:
@@ -84,12 +86,12 @@ def get_jql_result(jql):
     return data['issues']
 
 
-def generate_jql(user_role: str, feature_handle: str) -> str:
+def generate_jql(user_role: str, feature_handle: str, issue_type: str) -> str:
     status = role_status_map.get(user_role)
     if not status:
         raise ValueError(f"Unsupported role: {user_role}")
     
-    return f'labels = {feature_handle} AND status = "{status}"'
+    return f'labels = {feature_handle} AND status = "{status}" AND issuetype = "{issue_type}"'
 
 
 
