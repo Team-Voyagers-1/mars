@@ -1,0 +1,6 @@
+summary,story_points,epic
+User can fill loan application,3,Loan Application
+User can upload KYC documents,2,Loan Application
+System verifies user identity,5,Verification Engine
+System checks credit score with Experian,5,Credit Check Integration
+Loan is approved and user notified,3,Loan Approval & Notification
