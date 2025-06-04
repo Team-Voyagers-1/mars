@@ -58,9 +58,9 @@ class GenerateEpicsView(APIView):
             for row in records:
                 epic = generate_epic_details(context, row)
                 print(epic)
-                # epic.summary, result.key - is unique for each epic
-                # result = create_jira_issue(epic)
-                # epics.append(result)
+#                 epic.summary, result.key - is unique for each epic
+                result = create_jira_issue(epic)
+                epics.append(result)
 
             return Response({"epics": epics}, status=status.HTTP_200_OK)
         
