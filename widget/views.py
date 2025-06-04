@@ -9,7 +9,7 @@ import os
 from bson import ObjectId
 import csv
 from io import StringIO
-from .validation_config import (
+from .validation_epic import (
     FIELD_VALIDATION_RULES,
     get_required_fields,
     get_fields_with_allowed_values
@@ -162,8 +162,20 @@ def update_feature(request):
         
         # Get updated feature
         updated_feature = mongo_db.feature_details.find_one({"handle": handle})
+        
+        # Convert ObjectId to string for JSON serialization
+        updated_feature["_id"] = str(updated_feature["_id"])
+        for detail in updated_feature.get("details", []):
+            if "file_id" in detail:
+                detail["file_id"] = str(detail["file_id"])
+        if "story_sheet" in updated_feature and updated_feature["story_sheet"]:
+            updated_feature["story_sheet"]["file_id"] = str(updated_feature["story_sheet"]["file_id"])
+        if "epic_sheet" in updated_feature and updated_feature["epic_sheet"]:
+            updated_feature["epic_sheet"]["file_id"] = str(updated_feature["epic_sheet"]["file_id"])
     
-        return JsonResponse(update_feature)
+        return JsonResponse(updated_feature)
+
+    return JsonResponse({'error': 'Only POST allowed'}, status=405)
 
 def validate_file(uploaded_file):
 
@@ -242,9 +254,12 @@ def validate_file_content(content):
     headers = content[0]
     data_rows = content[1:] if len(content) > 0 else []
     
-    # Validation columns for each field plus overall validation
+    # Validation columns only for fields that have rules
     validation_columns = []
-    for field in FIELD_VALIDATION_RULES.keys():
+    fields_with_rules = [field for field, rules in FIELD_VALIDATION_RULES.items() 
+                        if rules.get("is_required") or rules.get("allowed_values")]
+    
+    for field in fields_with_rules:
         validation_columns.append(f"{field}_validation")
     validation_columns.append("is_valid_row")
     
@@ -260,53 +275,41 @@ def validate_file_content(content):
     
     # Validate each row
     for row in data_rows:
-        # Initialize validation results
-        validation_results = {f"{field}_validation": "PASS" for field in FIELD_VALIDATION_RULES.keys()}
+        # Initialize validation results only for fields with rules
+        validation_results = {f"{field}_validation": "PASS" for field in fields_with_rules}
         validation_results["is_valid_row"] = "PASS"
         
         # Create a dictionary of field values from the row
         field_values = dict(zip(headers, row))
         
         # Validate each field according to rules
-        for field, rules in FIELD_VALIDATION_RULES.items():
+        for field in fields_with_rules:
+            rules = FIELD_VALIDATION_RULES[field]
             field_value = field_values.get(field, "").strip()
             
             # Required field validation
-            if rules.get("is_required", False):
-                if not field_value:
-                    validation_results[f"{field}_validation"] = "FAIL: Required field is empty"
-                    validation_results["is_valid_row"] = "FAIL"
-                    continue
+            if rules.get("is_required", False) and not field_value:
+                validation_results[f"{field}_validation"] = "FAIL: Required field is empty"
+                validation_results["is_valid_row"] = "FAIL"
+                continue
             
             # Skip further validation if field is empty and not required
             if not field_value and not rules.get("is_required", False):
                 continue
             
-            # Field type validation
-            if rules.get("field_type") == "number":
-                try:
-                    if field_value:
-                        field_value = float(field_value)
-                except ValueError:
-                    validation_results[f"{field}_validation"] = "FAIL: Invalid number format"
-                    validation_results["is_valid_row"] = "FAIL"
-                    continue
-            
             # Allowed values validation
             if "allowed_values" in rules and field_value:
-                if rules["field_type"] == "number":
-                    field_value = float(field_value)
+                # Convert to number if the allowed values are numbers
+                if all(isinstance(x, (int, float)) for x in rules["allowed_values"]):
+                    try:
+                        field_value = float(field_value)
+                    except ValueError:
+                        validation_results[f"{field}_validation"] = "FAIL: Invalid number format"
+                        validation_results["is_valid_row"] = "FAIL"
+                        continue
+                
                 if field_value not in rules["allowed_values"]:
                     validation_results[f"{field}_validation"] = f"FAIL: Value not in allowed list {rules['allowed_values']}"
-                    validation_results["is_valid_row"] = "FAIL"
-            
-            # String length validation
-            if rules.get("field_type") == "string":
-                if "min_length" in rules and len(str(field_value)) < rules["min_length"]:
-                    validation_results[f"{field}_validation"] = f"FAIL: Length less than minimum {rules['min_length']}"
-                    validation_results["is_valid_row"] = "FAIL"
-                if "max_length" in rules and len(str(field_value)) > rules["max_length"]:
-                    validation_results[f"{field}_validation"] = f"FAIL: Length exceeds maximum {rules['max_length']}"
                     validation_results["is_valid_row"] = "FAIL"
         
         # Prepare row with validation results
@@ -365,17 +368,8 @@ def validate_uploaded_epic_file(request):
         # Validate and transform content to CSV
         csv_content = validate_file_content(content)
         
-        # Split CSV content into lines and parse
-        csv_lines = csv_content.strip().split('\n')
-        csv_data = [line.split(',') for line in csv_lines]
-        
-        # Prepare response with filename and CSV content
-        response = {
-            'filename': f'{file.filename}',
-            'content': csv_data
-        }
-        
-        return JsonResponse(response)
+        # Return just the CSV content directly
+        return HttpResponse(csv_content, content_type='text/csv')
 
     except Exception as e:
         return JsonResponse({
@@ -428,17 +422,8 @@ def validate_uploaded_story_file(request):
         # Validate and transform content to CSV
         csv_content = validate_file_content(content)
         
-        # Split CSV content into lines and parse
-        csv_lines = csv_content.strip().split('\n')
-        csv_data = [line.split(',') for line in csv_lines]
-        
-        # Prepare response with filename and CSV content
-        response = {
-            'filename': f'validated_{file.filename}',
-            'content': csv_data
-        }
-        
-        return JsonResponse(response)
+        # Return just the CSV content directly
+        return HttpResponse(csv_content, content_type='text/csv')
 
     except Exception as e:
         return JsonResponse({
