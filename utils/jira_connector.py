@@ -66,7 +66,11 @@ def format_description(text):
 
 
 def get_epic_key(summary,project_key):
+<<<<<<< HEAD
     jql = f'summary ~ "{summary}" AND issuetype = Feature AND project = {project_key}'
+=======
+    jql = f'summary ~ "{summary}" AND issuetype = Epic AND project = {project_key}'
+>>>>>>> 5857cbd9067269338a6194e1a4c9e0ed6d256bb5
     issues = get_jql_result(jql)
     epic_key = issues[0]["key"]
     return epic_key

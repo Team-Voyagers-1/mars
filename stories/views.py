@@ -83,6 +83,9 @@ class GetStoriesView(APIView):
         
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+<<<<<<< HEAD
         
 
 
+=======
+>>>>>>> 5857cbd9067269338a6194e1a4c9e0ed6d256bb5

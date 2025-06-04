@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 from utils.jira_connector import get_account_id, format_description,get_epic_key
 
 import os 
@@ -8,6 +9,11 @@ deployment = "gpt-35-turbo"
 subscription_key = "59fe04457dfa4194820ffabc22a6c5bf" 
 api_version = "2024-12-01-preview" 
 
+=======
+import openai
+from utils.jira_connector import get_account_id, format_description,get_epic_key
+
+>>>>>>> 5857cbd9067269338a6194e1a4c9e0ed6d256bb5
 
 def generate_story_details(context_text: str, record: dict) -> dict:
     """
@@ -28,7 +34,11 @@ Generate:
 - Enhanced Summary
 - Acceptance Criteria (as bullet points)
 """
+<<<<<<< HEAD
     # openai.api_key = "59fe04457dfa4194820ffabc22a6c5bf"
+=======
+    # openai.api_key = "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"
+>>>>>>> 5857cbd9067269338a6194e1a4c9e0ed6d256bb5
     # response = openai.ChatCompletion.create(
     #     model="gpt-3.5-turbo",
     #     messages=[
@@ -37,6 +47,7 @@ Generate:
     #     ],
     #     temperature=0.7
     # )
+<<<<<<< HEAD
     # client = AzureOpenAI(     
     #     api_version=api_version,     azure_endpoint=endpoint,     api_key=subscription_key
     #     ) 
@@ -47,6 +58,8 @@ Generate:
     #         ],     max_tokens=4096,     temperature=1.0,     top_p=1.0,     model=deployment )
     # print(response.choices[0].message.content)
 
+=======
+>>>>>>> 5857cbd9067269338a6194e1a4c9e0ed6d256bb5
 
     # ai_output = response['choices'][0]['message']['content']
     # Construct final JIRA issue payload
