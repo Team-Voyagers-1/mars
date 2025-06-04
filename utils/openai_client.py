@@ -37,15 +37,15 @@ Generate:
     #     ],
     #     temperature=0.7
     # )
-    client = AzureOpenAI(     
-        api_version=api_version,     azure_endpoint=endpoint,     api_key=subscription_key
-        ) 
-    response = client.chat.completions.create(     
-        messages=[  
-            {"role": "system", "content": "You are a product owner assistant."},
-            {"role": "user", "content": prompt}
-            ],     max_tokens=4096,     temperature=1.0,     top_p=1.0,     model=deployment )
-    print(response.choices[0].message.content)
+    # client = AzureOpenAI(     
+    #     api_version=api_version,     azure_endpoint=endpoint,     api_key=subscription_key
+    #     ) 
+    # response = client.chat.completions.create(     
+    #     messages=[  
+    #         {"role": "system", "content": "You are a product owner assistant."},
+    #         {"role": "user", "content": prompt}
+    #         ],     max_tokens=4096,     temperature=1.0,     top_p=1.0,     model=deployment )
+    # print(response.choices[0].message.content)
 
 
     # ai_output = response['choices'][0]['message']['content']
