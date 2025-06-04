@@ -75,7 +75,6 @@ class GetStoriesView(APIView):
             user_id = request.headers['User']; 
             users = mongo_db.users
             user = users.find_one({"_id": ObjectId(user_id)})
-            
             jql = generate_jql(user['role'], request.GET.get('feature_handle'))
             stories = get_jql_result(jql)
             stories = update_story_response(stories)
@@ -84,3 +83,6 @@ class GetStoriesView(APIView):
         
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+
+

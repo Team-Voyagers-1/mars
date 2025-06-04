@@ -1,5 +1,12 @@
-import openai
 from utils.jira_connector import get_account_id, format_description,get_epic_key
+
+import os 
+from openai import AzureOpenAI 
+endpoint = "https://bh-in-openai-voyagers.openai.azure.com/" 
+model_name = "gpt-35-turbo" 
+deployment = "gpt-35-turbo" 
+subscription_key = "59fe04457dfa4194820ffabc22a6c5bf" 
+api_version = "2024-12-01-preview" 
 
 
 def generate_story_details(context_text: str, record: dict) -> dict:
@@ -21,7 +28,7 @@ Generate:
 - Enhanced Summary
 - Acceptance Criteria (as bullet points)
 """
-    # openai.api_key = "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"
+    # openai.api_key = "59fe04457dfa4194820ffabc22a6c5bf"
     # response = openai.ChatCompletion.create(
     #     model="gpt-3.5-turbo",
     #     messages=[
@@ -30,6 +37,16 @@ Generate:
     #     ],
     #     temperature=0.7
     # )
+    # client = AzureOpenAI(     
+    #     api_version=api_version,     azure_endpoint=endpoint,     api_key=subscription_key
+    #     ) 
+    # response = client.chat.completions.create(     
+    #     messages=[  
+    #         {"role": "system", "content": "You are a product owner assistant."},
+    #         {"role": "user", "content": prompt}
+    #         ],     max_tokens=4096,     temperature=1.0,     top_p=1.0,     model=deployment )
+    # print(response.choices[0].message.content)
+
 
     # ai_output = response['choices'][0]['message']['content']
     # Construct final JIRA issue payload
