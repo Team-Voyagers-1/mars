@@ -18,19 +18,19 @@ class GenerateStoriesView(APIView):
               feature = mongo_db.feature_details.find_one({"handle": handle})
 
               file_id = feature["details"][0]["file_id"]
-              file_info = fetch_file_by_id(file_id)
+              file_info = fetch_file_by_id(ObjectId(file_id))
 
               story_file_id = request.data.get('file_id')
-              story_file_info = fetch_file_by_id(story_file_id)
+              story_file_info = fetch_file_by_id(ObjectId(story_file_id))
 
               context = extract_text_from_file(file_info["data"],file_info["filename"])
               records = parse_csv_records(story_file_info["data"])
 
               stories = []
               for row in records:
-                         row["labels"] = 'feature_handle, ' + str(row['labels'])
-                         story = generate_story_details(context, row, handle)
-                         stories.append(story)
+                story = generate_story_details(context, row, handle)
+                story = create_jira_issue(story)
+                stories.append(story)
 
               return Response({"stories": stories}, status=status.HTTP_200_OK)
 

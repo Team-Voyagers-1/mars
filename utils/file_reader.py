@@ -63,5 +63,4 @@ def parse_csv_records(file_bytes: bytes):
             "Parent": row.get("Parent", "").strip()
         }
         records.append(record)
-
     return records
