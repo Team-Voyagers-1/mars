@@ -41,20 +41,24 @@ def get_transition_id(issue_key, target_status):
 def update_issue(issue_key, new_status, assignee_email, comment_text):
     print(f"\n🔄 Processing {issue_key}")
 
-    # --- Transition (status change) ---
+    # --- Check if the status is valid ---
     if new_status:
         transition_id = get_transition_id(issue_key, new_status)
-        if transition_id:
-            response = requests.post(
-                f"{JIRA_BASE_URL}/rest/api/3/issue/{issue_key}/transitions",
-                headers=HEADERS,
-                auth=AUTH,
-                data=json.dumps({"transition": {"id": transition_id}})
-            )
-            if response.status_code == 204:
-                print(f"✅ Status updated to '{new_status}'")
-            else:
-                print(f"❌ Failed to update status: {response.text}")
+        if transition_id is None:
+            print(f"❌ Skipping update for {issue_key} as '{new_status}' is not a valid status")
+            return  # Exit early if the status is invalid
+
+        # Proceed with the status update if valid
+        response = requests.post(
+            f"{JIRA_BASE_URL}/rest/api/3/issue/{issue_key}/transitions",
+            headers=HEADERS,
+            auth=AUTH,
+            data=json.dumps({"transition": {"id": transition_id}})
+        )
+        if response.status_code == 204:
+            print(f"✅ Status updated to '{new_status}'")
+        else:
+            print(f"❌ Failed to update status: {response.text}")
 
     # --- Assignee update ---
     if assignee_email:
@@ -98,16 +102,16 @@ def update_issue(issue_key, new_status, assignee_email, comment_text):
 # ---------- Hardcoded Updates ----------
 jira_updates = [
     {
-        "issue_key": "SCRUM-11",
-        "new_status": "In Review",
+        "issue_key": "SCRUM-57",
+        "new_status": "IR1",
         "assignee": "jmalani54@gmail.com",
         "comment": "PO Review done. Ready for dev review."
     },
     {
-        "issue_key": "SCRUM-12",
-        "new_status": "Done",
-        "assignee": "jmalani54@gmail.com",
-        "comment": "Tested and verified. Closing the story."
+        "issue_key": "SCRUM-59",
+        "new_status": "IR2",  # This should match a valid status
+        "assignee": "megha.nsw01@gmail.com",
+        "comment": "Needs to be reviewed by BA."
     }
 ]
 

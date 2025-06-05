@@ -6,7 +6,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from utils.file_reader import extract_text_from_file, parse_csv_records
 from utils.openai_client import generate_story_details, generate_epic_details
-from utils.jira_connector import create_jira_issue,generate_jql,get_jql_result,update_story_response
+from utils.jira_connector import create_jira_issue,generate_jql,get_jql_result,update_story_response, update_issue_in_jira, update_sub_task
 from mongo.file_utils import fetch_file_by_id
 from users.mongo import mongo_db
 from bson import ObjectId
@@ -107,6 +107,11 @@ class UpdateJiraView(APIView):
             for issue in issues:
                 issue_id = issue.get('issue_id')
                 issue_type = issue.get('issue_type')
+                update_issue_in_jira(issue, configs, jira_status, comment)
+                if jira_status == "In Review":
+                    update_sub_task(issue, configs)
+                    # Call Sub-Task
+
 
             return Response({
                 "updated_issues": updated_issues,
