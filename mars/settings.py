@@ -54,7 +54,6 @@ INSTALLED_APPS = [
     'corsheaders',
     'stories',
     'configs',
-    'storages',
 ]
 
 MIDDLEWARE = [
