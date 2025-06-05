@@ -1,0 +1,4 @@
+﻿summary,description,issuetype,sprint,story_points,assignee,labels,parent,project
+Create user registration endpoint,Develop and document a secure REST API endpoint for user registration.,Story,,,6yq6kv526n@privaterelay.appleid.com,FB2,New Login System,SCRUM
+Redesign login screen UI,Redesign the login screen to align with new branding and enhance usability.,Story,,,6yq6kv526n@privaterelay.appleid.com,FB2,User Management Module,SCRUM
+Create sales performance chart,Design and build a bar chart to visualize monthly sales trends.,Story,,,6yq6kv526n@privaterelay.appleid.com,FB2,Data Analytics Dashboard,SCRUM
