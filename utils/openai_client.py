@@ -70,20 +70,46 @@ Generate:
 
 
 
-def generate_epic_details(context_text: str, record: dict, feature_handle:str):
-
-    labels = (record["labels"] if record["labels"] is not None else []) + [feature_handle]
-    print(record["issuetype"])
-
+def generate_epic_details(context_text: str, record: dict, feature_handle: str):
+    # issue_payload = {
+    #     "fields": {
+    #         "summary": record["summary"],
+    #         "project": {"key": record["project"]},
+    #         "description": format_description(record["description"]),
+    #         "issuetype": {"name": record["issuetype"]},
+    #         "assignee": {"accountId": get_account_id(record["assignee"])},
+    #         "labels": record["labels"]
+    #     }
+    # }
     issue_payload = {
-        "fields": {
-            "summary": record["summary"],
-            "project": {"key": record["project"]},
-            "description": format_description(record["description"]),
-            "issuetype": {"name": record["issuetype"]},
-            "assignee": {"accountId": get_account_id(record["assignee"])},
-            "labels": labels
-        }
+        "project": {"key": record["Project"]},
+        "summary": record["Summary"],
+        "description": format_description(record["Description"]),
+        "issuetype": {"name": "Feature"},
+        "customfield_10058": format_description(record["Acceptance Criteria"]),  # Generate by AI
+        "customfield_10020": record["Sprint"],
+        "customfield_10016": record["Story point estimate"],
+        "priority": {"name": record["Priority"]},
+        "assignee": {"accountId":  get_account_id(record["Assignee"])}
     }
+
+
+    # Handling labels (customfield_10065)
+    labels = (record["Label"] if record["Label"] is not None else []) + [feature_handle]
+    if labels:
+        issue_payload["customfield_10065"] = [label.strip() for label in str(labels).split(",") if label.strip()]
+
+    # Handling Components (customfield_10068)
+    if record["Components"]:
+        issue_payload["customfield_10068"] = [record["Components"].strip()]
+
+    # Handling Fix Versions (customfield_10067)
+    if record["Fix Versions"]:
+        if isinstance(record["Fix Versions"], str):  # If it's a string, strip it
+            issue_payload["customfield_10067"] = [record["Fix Versions"].strip()]
+        elif isinstance(record["Fix Versions"], float):  # Handle if it’s a float or NaN
+            issue_payload["customfield_10067"] = [str(record["Fix Versions"]).strip()]
+        else:
+            issue_payload["customfield_10067"] = []  # or skip if empty
 
     return issue_payload

@@ -4,7 +4,6 @@ import json
 # ---------- CONFIGURATION ----------
 JIRA_BASE_URL = "https://team-jira-voyagers.atlassian.net/"  # <-- Replace with your domain
 EMAIL = "6yq6kv526n@privaterelay.appleid.com"                     # <-- Replace with your email
-API_TOKEN = "ATATT3xFfGF0L8V7vCaLR5WktFThYSVWUvwIXuI544j--8XxsDc-EEzNOW1LMsgb9kuGA8MpsuZIB0SXeraHV3aJCQDanSRgfN1SXfdwUJuZoVtD7NarlDHNmcsipG4QKV6AvPC5gSBIggUUbsgPlEOJRvslmjV1FmHpZGTaCStYdGtl80jZg54=9A18D852"                         # <-- Replace with your API token
 
 HEADERS = {
     "Accept": "application/json",

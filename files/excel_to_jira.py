@@ -7,7 +7,6 @@ import os
 # ---------------- CONFIGURATION ----------------
 JIRA_BASE_URL = "https://team-jira-voyagers.atlassian.net/"  # <-- Replace with your domain
 EMAIL = "6yq6kv526n@privaterelay.appleid.com"                     # <-- Replace with your email
-API_TOKEN = "ATATT3xFfGF0L8V7vCaLR5WktFThYSVWUvwIXuI544j--8XxsDc-EEzNOW1LMsgb9kuGA8MpsuZIB0SXeraHV3aJCQDanSRgfN1SXfdwUJuZoVtD7NarlDHNmcsipG4QKV6AvPC5gSBIggUUbsgPlEOJRvslmjV1FmHpZGTaCStYdGtl80jZg54=9A18D852"                         # <-- Replace with your API token
 PROJECT_KEY = "SCRUM"
 EPIC_LINK_FIELD = "parent"  # Use "customfield_10014" if Jira Cloud requires Epic Link by custom field
 
@@ -21,8 +20,33 @@ HEADERS = {
 }
 AUTH = (EMAIL, API_TOKEN)
 
-# ---------- Helper Functions ----------
+
+def get_issue_key_by_summary(summary):
+    """Search for an issue by its summary and return the issue key."""
+    url = f"{JIRA_BASE_URL}/rest/api/3/search"
+    jql = f'project="{PROJECT_KEY}" AND summary~"{summary}"'
+    params = {
+        "jql": jql,
+        "fields": "key",
+        "maxResults": 1  # Adjust based on your needs
+    }
+
+    response = requests.get(url, headers=HEADERS, auth=AUTH, params=params)
+
+    if response.status_code == 200:
+        issues = response.json()["issues"]
+        if issues:
+            return issues[0]["key"]  # Return the issue key of the first matched issue
+        else:
+            print(f"⚠️ No Epic/Feature found with summary: {summary}")
+            return None
+    else:
+        print(f"❌ Failed to search for issue: {response.text}")
+        return None
+
+
 def make_adf(text):
+    """Helper function to convert text to Atlassian Document Format"""
     return {
         "type": "doc",
         "version": 1,
@@ -48,41 +72,73 @@ def get_account_id(name_or_email):
         print(f"❌ Failed to search for user {name_or_email}: {response.text}")
         return None
 
-# ---------- Epic Creation ----------
-def create_epics(excel_path):
-    df = pd.read_excel(excel_path)
-    epic_map = {}
 
-    main_label = str(df.iloc[0]["labels"]).split(",")[0].strip()
-    map_file = f"epic_map_{main_label}.json"
+def create_issues(excel_path, issue_type):
+    df = pd.read_csv(excel_path)  # Read CSV file
 
     for _, row in df.iterrows():
-        summary = row["summary"]
-        description = row["description"]
-        assignee_input = row["assignee"]
-        assignee_id = get_account_id(assignee_input)
-        labels = [label.strip() for label in str(row["labels"]).split(",") if label.strip()]
-        sprint = row.get("sprint", None)
-        story_points = row.get("story_points", None)
+        summary = row["Summary"]
+        priority = row["Priority"]
+        component = row["Components"]
+        fix_version = row["Fix Versions"]
+        labels = row["Label"]
+        acceptance_criteria = row["Acceptance Criteria"]
+        description = row["Description"]
+        assignee_input = row["Assignee"]
+        reporter_input = row["Reporter"]
+        sprint = row["Sprint"]
+        story_points = row["Story point estimate"]
 
+        # Initialize parent_key as None
+        parent_key = None
+
+        # Check for Parent field only for Stories
+        if issue_type == "Story":
+            parent_summary = row.get("Parent", None)  # This is the Feature/Parent column
+            if parent_summary:
+                parent_key = get_issue_key_by_summary(parent_summary)  # Get the parent issue key
+
+        # Find account IDs (similar to earlier)
+        assignee_id = get_account_id(assignee_input)
+        reporter_id = get_account_id(reporter_input)
+
+        # Construct fields for issue creation (Feature or Story)
         fields = {
             "project": {"key": PROJECT_KEY},
             "summary": summary,
             "description": make_adf(description),
-            "issuetype": {"name": "Epic"},
-            "labels": labels
+            "issuetype": {"name": issue_type},
+            "customfield_10058": make_adf(acceptance_criteria),
+            "customfield_10020": sprint,
+            "customfield_10016": story_points,
+            "priority": {"name": priority},
+            "assignee": {"accountId": assignee_id},
+            "reporter": {"accountId": reporter_id}
         }
 
-        if assignee_id:
-            fields["assignee"] = {"accountId": assignee_id}
+        # If the issue is a Story, link it to its Parent (Epic/Feature) using customfield_10006
+        if issue_type == "Story" and parent_key:
+            fields["parent"] = {"key": parent_key}  # Use the parent field for Story linking
 
-        if pd.notna(sprint):
-            fields[SPRINT_FIELD] = sprint
+        # Handling labels (customfield_10065)
+        if pd.notna(labels):
+            fields["customfield_10065"] = [label.strip() for label in str(labels).split(",") if label.strip()]
 
-        if pd.notna(story_points):
-            fields[STORY_POINTS_FIELD] = float(story_points)
+        # Handling Components (customfield_10068)
+        if pd.notna(component):
+            fields["customfield_10068"] = [component.strip()]
 
-        print(f"🟠 Creating Epic: {summary}")
+        # Handling Fix Versions (customfield_10067)
+        if pd.notna(fix_version):
+            if isinstance(fix_version, str):  # If it's a string, strip it
+                fields["customfield_10067"] = [fix_version.strip()]
+            elif isinstance(fix_version, float):  # Handle if it’s a float or NaN
+                fields["customfield_10067"] = [str(fix_version).strip()]
+            else:
+                fields["customfield_10067"] = []  # or skip if empty
+
+        # Create the issue (Story or Feature) in JIRA
+        print(f"🟠 Creating {issue_type}: {summary}")
         response = requests.post(
             f"{JIRA_BASE_URL}/rest/api/3/issue",
             headers=HEADERS,
@@ -91,89 +147,28 @@ def create_epics(excel_path):
         )
 
         if response.status_code == 201:
-            epic_key = response.json()["key"]
-            epic_map[summary] = epic_key
-            print(f"✅ Created Epic: {epic_key}")
+            issue_key = response.json()["key"]
+            print(f"✅ Created {issue_type}: {issue_key}")
         else:
-            print(f"❌ Failed to create Epic: {summary} - {response.text}")
+            print(f"❌ Failed to create {issue_type}: {summary} - {response.text}")
 
-    with open(map_file, "w") as f:
-        json.dump(epic_map, f, indent=4)
-    print(f"🗂️ Epic mapping saved to {map_file}")
-
-# ---------- Story Creation ----------
-def create_stories(excel_path):
-    df = pd.read_excel(excel_path)
-
-    main_label = str(df.iloc[0]["labels"]).split(",")[0].strip()
-    map_file = f"epic_map_{main_label}.json"
-
-    if not os.path.exists(map_file):
-        print(f"❌ Mapping file '{map_file}' not found. Cannot proceed with story creation.")
-        return
-
-    with open(map_file) as f:
-        epic_map = json.load(f)
-
-    for _, row in df.iterrows():
-        summary = row["summary"]
-        description = row["description"]
-        assignee_input = row["assignee"]
-        assignee_id = get_account_id(assignee_input)
-        labels = [label.strip() for label in str(row["labels"]).split(",") if label.strip()]
-        parent_summary = row.get("parent", None)
-        sprint = row.get("sprint", None)
-        story_points = row.get("story_points", None)
-
-        fields = {
-            "project": {"key": PROJECT_KEY},
-            "summary": summary,
-            "description": make_adf(description),
-            "issuetype": {"name": "Story"},
-            "labels": labels
-        }
-
-        if assignee_id:
-            fields["assignee"] = {"accountId": assignee_id}
-
-        if pd.notna(sprint):
-            fields[SPRINT_FIELD] = sprint
-
-        if pd.notna(story_points):
-            fields[STORY_POINTS_FIELD] = float(story_points)
-
-        if parent_summary and parent_summary in epic_map:
-            fields[EPIC_LINK_FIELD] = {"key": epic_map[parent_summary]}
-        elif parent_summary:
-            print(f"⚠️ Epic not found for: {summary} (parent = {parent_summary})")
-            continue
-
-        print(f"🟡 Creating Story: {summary}")
-        response = requests.post(
-            f"{JIRA_BASE_URL}/rest/api/3/issue",
-            headers=HEADERS,
-            auth=AUTH,
-            data=json.dumps({"fields": fields})
-        )
-
-        if response.status_code == 201:
-            story_key = response.json()["key"]
-            print(f"✅ Created Story: {story_key}")
-        else:
-            print(f"❌ Failed to create Story: {summary} - {response.text}")
 
 # ---------- Entry Point ----------
 if __name__ == "__main__":
-    input_type = input("Enter type (Epic/Story): ").strip().lower()
-    file_path = input("Enter full path to Excel file: ").strip()
+    # Ask for issue type (Feature or Story)
+    issue_type = input("Enter issue type (Feature or Story): ").strip().capitalize()
+
+    # Ensure valid issue type input
+    if issue_type not in ["Feature", "Story"]:
+        print("❌ Invalid issue type. Please enter either 'Feature' or 'Story'.")
+        sys.exit(1)
+
+    # Ask for the full path to the CSV file
+    file_path = input("Enter full path to CSV file: ").strip()
 
     if not os.path.exists(file_path):
         print("❌ File not found. Please check the path.")
         sys.exit(1)
 
-    if input_type == "epic":
-        create_epics(file_path)
-    elif input_type == "story":
-        create_stories(file_path)
-    else:
-        print("❌ Invalid input type. Must be 'Epic' or 'Story'.")
+    # Create issues based on the input
+    create_issues(file_path, issue_type)
