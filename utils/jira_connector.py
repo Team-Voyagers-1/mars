@@ -111,21 +111,22 @@ def update_story_response(issues):
     return results
 
 def update_issue(issue, configs, status, comment):
-    users = configs["role_ids"]
     assignee_email = ""
+    print("statusss: ", status)
     if (status == "In Review" or status == "Pending Development"):
         assignee_email = get_email("Scrum Master", configs)
         status="IR1"
     if status == "In Refinement":
         assignee_email = get_email("BA Lead", configs)
         status="IR2"
-    update_issue_in_jira(issue["issue_key"], status, assignee_email, comment)
+    update_issue_in_jira(issue.get("issue_id"), status, assignee_email, comment)
 
         
 
 def get_email(role, configs):
-    users = configs["role_ids"]
+    users = configs.get("roles_config")
     for user in users:
+        print("users: ", user)
         if user['role'] == role:
             return user['email']
     return ""
@@ -158,7 +159,7 @@ def update_issue_in_jira(issue_key, new_status, assignee_email, comment_text):
             f"{settings.JIRA_BASE_URL}/rest/api/3/issue/{issue_key}/transitions",
             headers=headers,
             auth=auth,
-            data={"transition": {"id": transition_id}}
+            json={"transition": {"id": transition_id}}
         )
         if response.status_code == 204:
             print(f"✅ Status updated to '{new_status}'")
@@ -173,7 +174,7 @@ def update_issue_in_jira(issue_key, new_status, assignee_email, comment_text):
                 f"{settings.JIRA_BASE_URL}/rest/api/3/issue/{issue_key}/assignee",
                 headers=headers,
                 auth=auth,
-                data={"accountId": account_id}
+                json={"accountId": account_id}
             )
             if response.status_code == 204:
                 print(f"✅ Assignee updated to {assignee_email}")
@@ -196,7 +197,7 @@ def update_issue_in_jira(issue_key, new_status, assignee_email, comment_text):
             f"{settings.JIRA_BASE_URL}/rest/api/3/issue/{issue_key}/comment",
             headers=headers,
             auth=auth,
-            data=comment_data
+            json=comment_data
         )
         if response.status_code == 201:
             print("✅ Comment added")
@@ -206,11 +207,11 @@ def update_issue_in_jira(issue_key, new_status, assignee_email, comment_text):
 
 
 def update_sub_task(issue, configs):
-    subtasks = configs["subtask_config"]
+    subtasks = configs.get("subtask_config")
     for subtask in subtasks:
-        email = get_email(subtask["assignee"], configs)
-        create_sub_task(issue["issue_key"], subtask["summary"], subtask["summary"], email)
-        
+        email = get_email(subtask.get("assignee"), configs)
+        create_sub_task(issue.get("issue_id"), subtask.get("summary"), subtask.get("summary"), email)
+
 
 def get_account_id_by_email(email):
     response = requests.get(
@@ -257,7 +258,7 @@ def create_sub_task(parent_key, summary, description, assignee_email):
         f"{settings.JIRA_BASE_URL}/rest/api/3/issue",
         headers=headers,
         auth=auth,
-        data=payload
+        json=payload
     )
 
     if response.status_code == 201:
