@@ -1,6 +1,3 @@
-summary,story_points,epic
-User can fill loan application,3,Loan Application
-User can upload KYC documents,2,Loan Application
-System verifies user identity,5,Verification Engine
-System checks credit score with Experian,5,Credit Check Integration
-Loan is approved and user notified,3,Loan Approval & Notification
+Summary,Priority,Components,Fix Versions,Label,Acceptance Criteria,Description,Assignee,Sprint,Story point estimate,Reporter,Parent
+Login Page Story,High,UI,"1.0",loginPage,"Acceptance Criteria for Login page: 1) Login button is clickable 2) Login form validates input correctly","This story is for creating the login page UI.","6yq6kv526n@privaterelay.appleid.com",1,5,"6yq6kv526n@privaterelay.appleid.com","Login Page Feature"
+Payment Gateway Integration Story,Medium,Backend,"1.0",paymentIntegration,"Acceptance Criteria for Payment Integration: 1) Payment gateway integration is successful 2) Payment errors are handled correctly","This story is for integrating payment gateway into the system.","6yq6kv526n@privaterelay.appleid.com",1,8,"6yq6kv526n@privaterelay.appleid.com","Payment Integration"

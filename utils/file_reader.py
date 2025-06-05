@@ -49,15 +49,18 @@ def parse_csv_records(file_bytes: bytes):
 
     for row in reader:
         record = {
-            "summary": row.get("summary", "").strip(),
-            "project": row.get("project", "").strip(),
-            "description": row.get("description", "").strip(),
-            "issuetype": row.get("issuetype", "Story").strip(),
-            "sprint": row.get("sprint", "").strip(),
-            "story_points": row.get("story_points", 0),
-            "assignee": row.get("assignee", "").strip(),
-            "labels": [label.strip() for label in row.get("labels", "").split(",") if label.strip()],
-            "parent": row.get("parent", "").strip()
+            "Summary": row.get("Summary", "").strip(),
+            "Project": row.get("Project", "").strip(),
+            "Description": row.get("Description", "").strip(),
+            "Sprint": row.get("Sprint", "").strip(),
+            "Story point estimate": row.get("Story point estimate", 0),
+            "Priority": row.get("Priority", "").strip(),
+            "Components": row.get("Components", "").strip(),
+            "Fix Versions": row.get("Fix Versions", "").strip(),
+            "Assignee": row.get("Assignee", "").strip(),
+            "Acceptance Criteria": row.get("Acceptance Criteria", "").strip(),
+            "Label": [label.strip() for label in row.get("Label", "").split(",") if label.strip()],
+            "Parent": row.get("Parent", "").strip()
         }
         records.append(record)
 

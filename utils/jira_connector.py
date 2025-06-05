@@ -21,7 +21,7 @@ def create_jira_issue(issue_payload: dict) -> dict:
     Sends the issue payload to the JIRA API to create a new issue.
     """
     url = f"{settings.JIRA_BASE_URL}/rest/api/3/issue"
-
+    print("issue: ", issue_payload)
     response = requests.post(url, json=issue_payload, headers=headers, auth=auth)
 
     if response.status_code == 201:
@@ -44,7 +44,6 @@ def get_account_id(name_or_email):
 
     if response.status_code == 200:
         users = response.json()
-        print(url,users)
 
         if users:
             return users[0]["accountId"]
@@ -76,7 +75,6 @@ def get_epic_key(summary,project_key):
 
 def get_jql_result(jql):
     url = f"{settings.JIRA_BASE_URL}/rest/api/2/search?jql={jql}"
-    print("jql", jql)
     response = requests.get(
     url,
     headers=headers,

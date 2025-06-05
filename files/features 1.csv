@@ -1,0 +1,3 @@
+Summary,Priority,Components,Fix Versions,Label,Acceptance Criteria,Description,Assignee,Sprint,Story point estimate,Reporter
+Login Page Feature,High,UI,"1.0",loginPage,"Acceptance Criteria for Login page: 1) Login button is clickable 2) Login form validates input correctly","This feature involves creating the login page.","6yq6kv526n@privaterelay.appleid.com",1,5,"6yq6kv526n@privaterelay.appleid.com"
+Payment Integration,Medium,Backend,"1.0",paymentIntegration,"Acceptance Criteria for Payment Integration: 1) Payment gateway integration is successful 2) Payment errors are handled correctly","This feature involves integrating payment gateway into the system.","6yq6kv526n@privaterelay.appleid.com",1,8,"6yq6kv526n@privaterelay.appleid.com"
