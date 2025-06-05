@@ -25,6 +25,7 @@ class RegisterView(APIView):
         username = request.data.get("username")
         password = request.data.get("password")
         role = request.data.get("role", "user")
+        email = request.data.get("email")
 
         if users.find_one({"username": username}):
             return Response({"error": "User already exists"}, status=status.HTTP_400_BAD_REQUEST)
@@ -32,7 +33,8 @@ class RegisterView(APIView):
         users.insert_one({
             "username": username,
             "password": hash_password(password),
-            "role": role
+            "role": role,
+            "email": email
         })
 
         return Response({"message": "User registered successfully"}, status=status.HTTP_201_CREATED)
