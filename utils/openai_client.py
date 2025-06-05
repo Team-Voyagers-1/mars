@@ -11,28 +11,29 @@ api_version = "2024-12-01-preview"
 
 def generate_story_details(context_text: str, record: dict, feature_handle: str) -> dict:
     response = get_ai_response(context_text, record)
-    labels = (record["labels"] if record["labels"] is not None else []) + ("," + feature_handle)
-    parent_summary = record("Parent", None)  # This is the Feature/Parent column
-    parent_key = get_epic_key(parent_summary, record["Project"])  # Get the parent issue key
+
+    parent_summary = record["Parent"] or None  # This is the Feature/Parent column
+    parent_key = get_epic_key(parent_summary, record["Project"] or "SCRUM")  # Get the parent issue key
     # Construct final JIRA issue payload
     issue_payload = {
         "project": {"key": record["Project"] or "SCRUM"},
-        "summary": record["Summary"],
-        "description": format_description(record["Description"]),
-        "issuetype": {"name": "Feature"},
-        "customfield_10058": format_description(record["Acceptance Criteria"]),  # Generate by AI
-        "customfield_10020": record["Sprint"],
-        "customfield_10016": record["Story point estimate"],
+        "summary": response[0],
+        "description": format_description(response[2]),
+        "issuetype": {"name": "Story"},
+        "customfield_10058": format_description(response[1]),  # Generate by AI
+        "customfield_10020": int(record["Sprint"]),
+        "customfield_10016":int(record["Story point estimate"]),
         "priority": {"name": record["Priority"]},
         "assignee": {"accountId":  get_account_id(record["Assignee"])},
         "parent": {"key": parent_key}
     }
 
 
+
     # Handling labels (customfield_10065)
     labels = (record["Label"] if record["Label"] is not None else []) + [feature_handle]
     if labels:
-        issue_payload["customfield_10065"] = [label.strip() for label in str(labels).split(",") if label.strip()]
+        issue_payload["customfield_10065"] = labels
 
     # Handling Components (customfield_10068)
     if record["Components"]:
@@ -58,13 +59,13 @@ def generate_story_details(context_text: str, record: dict, feature_handle: str)
 def generate_epic_details(context_text: str, record: dict, feature_handle: str):
     response = get_ai_response(context_text, record)
     issue_payload = {
-        "project": {"key": "TEST"},
+        "project": {"key": "SCRUM"},
         "summary": response[0],
         "description": format_description(response[2]),
         "issuetype": {"name": "Feature"},
         "customfield_10058": format_description(response[1]),  
-        "customfield_10020": record["Sprint"],
-        "customfield_10016": record["Story point estimate"],
+        "customfield_10020": int(record["Sprint"]),
+        "customfield_10016": int(record["Story point estimate"]),
         "priority": {"name": record["Priority"]},
         "assignee": {"accountId":  get_account_id(record["Assignee"])}
     }
@@ -134,5 +135,4 @@ Generate in '|' separated format(Summary,Acceptance Criteria,Description):
     cols = []
     if len(rows) >= 2:
         cols = rows[1].split("|")
-    # print("gptResponse: ",cols)
     return cols

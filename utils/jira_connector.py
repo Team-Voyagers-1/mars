@@ -21,8 +21,7 @@ def create_jira_issue(issue_payload: dict) -> dict:
     Sends the issue payload to the JIRA API to create a new issue.
     """
     url = f"{settings.JIRA_BASE_URL}/rest/api/3/issue"
-    print("issue: ", issue_payload)
-    response = requests.post(url, json=issue_payload, headers=headers, auth=auth)
+    response = requests.post(url, headers=headers, auth=auth, json={"fields": issue_payload})
 
     if response.status_code == 201:
         print("✅ Issue created:", response.json()["key"])
@@ -89,7 +88,7 @@ def generate_jql(user_role: str, feature_handle: str, issue_type: str) -> str:
     if not status:
         raise ValueError(f"Unsupported role: {user_role}")
     
-    return f'labels = {feature_handle} AND status = "{status}" AND issuetype = "{issue_type}"'
+    return f'Label = {feature_handle} AND status = "{status}" AND issuetype = "{issue_type}"'
 
 
 
