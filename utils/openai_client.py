@@ -47,20 +47,40 @@ Generate:
         model=deployment 
     )
     labels = (record["labels"] if record["labels"] is not None else []) + ("," + feature_handle)
+    parent_summary = record("Parent", None)  # This is the Feature/Parent column
+    parent_key = get_epic_key(parent_summary, record["project"])  # Get the parent issue key
     # Construct final JIRA issue payload
     issue_payload = {
-        "fields": {
-            "summary": record["summary"],
-            "project": {"key": record["project"]},
-            "description": format_description(record["description"]),
-            "issuetype": {"name": record["issuetype"]},
-            # "customfield_10020": record["sprint"],  # Replace with actual custom field ID
-            # "customfield_10016": record["story_points"],  # Story points
-            "assignee": {"accountId": get_account_id(record["assignee"])},
-            "labels": labels,
-            "parent": {"key": get_epic_key(record["parent"], record["project"])}
-        }
+        "project": {"key": record["Project"]},
+        "summary": record["Summary"],
+        "description": format_description(record["Description"]),
+        "issuetype": {"name": "Feature"},
+        "customfield_10058": format_description(record["Acceptance Criteria"]),  # Generate by AI
+        "customfield_10020": record["Sprint"],
+        "customfield_10016": record["Story point estimate"],
+        "priority": {"name": record["Priority"]},
+        "assignee": {"accountId":  get_account_id(record["Assignee"])},
+        "parent": {"key": parent_key}
     }
+
+
+    # Handling labels (customfield_10065)
+    labels = (record["Label"] if record["Label"] is not None else []) + [feature_handle]
+    if labels:
+        issue_payload["customfield_10065"] = [label.strip() for label in str(labels).split(",") if label.strip()]
+
+    # Handling Components (customfield_10068)
+    if record["Components"]:
+        issue_payload["customfield_10068"] = [record["Components"].strip()]
+
+    # Handling Fix Versions (customfield_10067)
+    if record["Fix Versions"]:
+        if isinstance(record["Fix Versions"], str):  # If it's a string, strip it
+            issue_payload["customfield_10067"] = [record["Fix Versions"].strip()]
+        elif isinstance(record["Fix Versions"], float):  # Handle if it’s a float or NaN
+            issue_payload["customfield_10067"] = [str(record["Fix Versions"]).strip()]
+        else:
+            issue_payload["customfield_10067"] = []  # or skip if empty
 
 
     # Remove parent key if not present
