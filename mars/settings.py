@@ -36,8 +36,7 @@ SECRET_KEY = 'django-insecure-$55*z=p-8lvb@+qsw99^3#733g)g_zf@38ed*d&0z%tuej_+yr
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
-
+ALLOWED_HOSTS = ['storycraftai-csgsdme9e2d7hdgx.southindia-01.azurewebsites.net', 'localhost']
 
 # Application definition
 
@@ -55,6 +54,7 @@ INSTALLED_APPS = [
     'corsheaders',
     'stories',
     'configs',
+    'storages',
 ]
 
 MIDDLEWARE = [
